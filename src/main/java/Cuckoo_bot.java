@@ -1,17 +1,19 @@
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Iterator;
+
+
+
 
 public class Cuckoo_bot extends TelegramLongPollingBot {
     @Override
@@ -20,21 +22,35 @@ public class Cuckoo_bot extends TelegramLongPollingBot {
             String message_text = update.getMessage().getText();
             String chat_id = update.getMessage().getChatId().toString();
             SendMessage message= new SendMessage();
-            String Recipe = GetRecipeFromApi(message_text);
-                   message.setText(Recipe);
-                   message.setChatId(chat_id);
-            try {
-                execute(message);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
+            System.out.println(message_text); //логирую в консоль, что вводили пользователи
+            String[] Recipe=GetRecipeFromApi(message_text);
+            String msg;
+            for (int i=1;i<10;i++) { //выводим массив с рецептами
+                msg = Recipe[i];
+                message.setText(msg);
+                message.setChatId(chat_id);
+
+                try {
+                    execute(message);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
+    @Override
+    public String getBotUsername(){
+        return "qubotrainbot";
+    }
+    @Override
+    public String getBotToken(){
+        return "";
+    } //токен бота
 
-    public String GetRecipeFromApi (String Coctail) {
+    public String[] GetRecipeFromApi (String Coctail) {
         String query = "https://www.thecocktaildb.com/api/json/v1/1/search.php?s=";      //сайт, к которому обращаемся
-        String NotFind="\"Recipe not found. Please check the spelling is correct. P.S. I only understand recipes in English\" \n"+"\"Рецепт не найден. Пожалуйста, проверьте правильность написания. П.С. Я пока понимаю только рецепты на английском\"";
-        String FinalRecipe = new String();
+        String NotFind="Коктейль не найден. Проверьте правильность написания. Пример: Bloody Mary"+"\n"+"P.S. Я пока понимаю только рецепты на английском";
+        String[] FinalRecipe = new String[10];
         HttpsURLConnection connection = null;//определяем подключение, изначально обнуляем
         try {
             connection=(HttpsURLConnection) new URL(query+Coctail).openConnection(); //определяем адрес URL
@@ -61,34 +77,37 @@ public class Cuckoo_bot extends TelegramLongPollingBot {
             Object RecipeCoctail = new JSONParser().parse(String.valueOf(sb)); //Считываем Json
             JSONObject cock = (JSONObject) RecipeCoctail; //Кастим в JSONObject
             JSONArray Drink = (JSONArray) cock.get("drinks"); //Засовываем в массив
-            Iterator DrinkRe = Drink.iterator(); //Создаем коллекцию
 
-            if (cock.get("drinks").toString() == null){
-                FinalRecipe=NotFind;
+            if (Drink == null){
+                FinalRecipe[1]=NotFind;
             }
             else
             {
+                Iterator DrinkRe = Drink.iterator(); //Создаем коллекцию
+                int m=1;
                 while (DrinkRe.hasNext()){ //Перебираем коллекцию
                     JSONObject text = (JSONObject) DrinkRe.next();
-                    FinalRecipe=FinalRecipe+"Name: "+text.get("strDrink")+"\n";
-                    FinalRecipe=FinalRecipe+"Alcoholic: "+text.get("strAlcoholic")+"\n";
-                    FinalRecipe=FinalRecipe+"Glass: "+text.get("strGlass")+"\n";
-                    FinalRecipe=FinalRecipe+"Ingredient: ";
+                    FinalRecipe[m]=FinalRecipe[m]+text.get("strDrink")+"\n";
+                    FinalRecipe[m]=FinalRecipe[m]+"Alcoholic: "+text.get("strAlcoholic")+"\n";
+                    FinalRecipe[m]=FinalRecipe[m]+"Glass: "+text.get("strGlass")+"\n";
+                    FinalRecipe[m]=FinalRecipe[m]+"Ingredient: ";
                     int n=0;
                     while (++n < 16){ //Заводим счетчик, чтобы избавиться от null значений
                         if (text.get("strIngredient"+n) != null)
                         {
-                            FinalRecipe=FinalRecipe+" +"+text.get("strIngredient"+n);
+                            FinalRecipe[m]=FinalRecipe[m]+" +"+text.get("strIngredient"+n);
                             if (text.get("strMeasure"+n) != null) {
-                                FinalRecipe=FinalRecipe+"("+text.get("strMeasure"+n)+")";
+                                FinalRecipe[m]=FinalRecipe[m]+"("+text.get("strMeasure"+n)+")";
                             }
                         }
                     }
-                    FinalRecipe=FinalRecipe+"\n"+"Recipe: "+text.get("strInstructions")+"\n";
-                    FinalRecipe=FinalRecipe+"Picture: "+text.get("strDrinkThumb")+"\n"+"\n";
+                    FinalRecipe[m]=FinalRecipe[m]+"\n"+"Recipe: "+text.get("strInstructions")+"\n";
+                    FinalRecipe[m]=FinalRecipe[m]+"Picture: "+text.get("strDrinkThumb")+"\n"+"\n";
+//                    System.out.println(FinalRecipe[m]);
+                    m=m+1;
                 }
             }
-//                System.out.println(FinalRecipe);
+
         } catch (Throwable cause) {         //ловим ошибки
             cause.printStackTrace();
         } finally {                         //вне зависимости от ошибки проверяем
@@ -97,12 +116,5 @@ public class Cuckoo_bot extends TelegramLongPollingBot {
         }
         return FinalRecipe;
     }
-    @Override
-    public String getBotUsername(){
-        return "qubotrainbot";
-    }
-    @Override
-    public String getBotToken(){
-        return "5500411164:AAHRAKdnOb98QcAklRtiPcUk9MHIsckioHw";
-    }
+
 }
